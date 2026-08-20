@@ -111,6 +111,13 @@
   .row-detail td{background:#f7faf8; padding:12px 16px 16px 34px; border-bottom:1px solid var(--line);}
   .dims-inline{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px 24px;}
   .dims-inline .dim-row{display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed var(--line); font-size:.82rem;}
+  .heatmap-picker{display:flex; flex-wrap:wrap; gap:8px;}
+  .heatmap-picker label{display:flex; align-items:center; gap:6px; background:#eef4f0; border:1px solid var(--line); border-radius:20px; padding:6px 12px; font-size:.82rem; cursor:pointer; user-select:none;}
+  .heatmap-picker label.checked{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .heatmap-picker input{cursor:pointer;}
+  .heatmap-table th, .heatmap-table td{text-align:center;}
+  .heatmap-table th:first-child, .heatmap-table td:first-child{text-align:left;}
+  .heatmap-cell{display:inline-block; min-width:64px; padding:6px 4px; border-radius:6px; color:#fff; font-weight:600; font-size:.78rem;}
   .type-tabs{display:flex; gap:8px; margin-bottom:14px;}
   .type-tabs button{background:#e9eef1; color:var(--muted); padding:8px 16px;}
   .type-tabs button.active{background:var(--accent); color:#fff;}
@@ -279,6 +286,22 @@
     </div>
   </section>
 
+  <!-- TEAM FIT HEATMAP -->
+  <section class="card">
+    <h2>Team fit heatmap</h2>
+    <p style="margin-top:-4px; margin-bottom:14px; color:var(--muted); font-size:.85rem;">
+      Pick a few candidates (e.g. finalists for the same team) to compare side by side across all 8 dimensions at a glance.
+    </p>
+    <div class="heatmap-picker" id="heatmapPicker"></div>
+    <div style="overflow-x:auto; margin-top:14px;">
+      <table class="candidates heatmap-table" id="heatmapTable" style="display:none;">
+        <thead><tr id="heatmapHeadRow"><th>Dimension</th></tr></thead>
+        <tbody id="heatmapBody"></tbody>
+      </table>
+      <div class="empty-state" id="heatmapEmptyState">Select two or more candidates above to build the heatmap.</div>
+    </div>
+  </section>
+
   <!-- EXCEL / TEAMS SYNC STATUS -->
   <section class="card">
     <h2>Excel history &amp; Teams sync <span class="tag" id="syncTag">not configured</span></h2>
@@ -348,6 +371,7 @@ const DIMENSIONS = [
 
 const RATING_POINTS = { 'Low':0, 'Mid':1, 'High':3, 'Very High':5 };
 const RATING_CLASS  = { 'Low':'low', 'Mid':'mid', 'High':'high', 'Very High':'vhigh' };
+const RATING_COLOR_VAR = { 'Low':'var(--low)', 'Mid':'var(--mid)', 'High':'var(--high)', 'Very High':'var(--vhigh)' };
 
 // Growth path lookup (Lookup sheet), ascending by score threshold
 const GROWTH_TABLE = [
@@ -375,6 +399,7 @@ let nextId = 1;
 let currentFormType = 'TECH';
 let sortState = { col:'score', dir:'desc' };
 let expandedIds = new Set(); // candidate ids currently showing their per-dimension breakdown inline
+let heatmapSelectedIds = new Set(); // candidate ids currently shown in the team fit heatmap
 
 // ---------- Init: build static reference sections ----------
 function buildGrowthTable(){
@@ -677,6 +702,75 @@ function renderTable(){
   }).join('');
 
   renderComparison();
+  renderHeatmapPicker();
+  renderHeatmap();
+}
+
+function toggleHeatmapCandidate(id){
+  if (heatmapSelectedIds.has(id)) heatmapSelectedIds.delete(id); else heatmapSelectedIds.add(id);
+  renderHeatmap();
+}
+
+// Checkbox picker listing every candidate assessment so the user can choose who to compare.
+function renderHeatmapPicker(){
+  const picker = document.getElementById('heatmapPicker');
+  // Drop selections for candidates that no longer exist (deleted/edited away).
+  const validIds = new Set(candidates.map(c => c.id));
+  heatmapSelectedIds.forEach(id => { if (!validIds.has(id)) heatmapSelectedIds.delete(id); });
+
+  if (!candidates.length){
+    picker.innerHTML = '';
+    return;
+  }
+  const sorted = [...candidates].sort((a,b) => a.name.localeCompare(b.name));
+  picker.innerHTML = sorted.map(c => {
+    const checked = heatmapSelectedIds.has(c.id);
+    const typeLabel = c.type === 'TECH' ? 'Technical' : 'HR';
+    return `
+      <label class="${checked ? 'checked' : ''}">
+        <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleHeatmapCandidate(${c.id})">
+        ${escapeHtml(c.name)} <span style="opacity:.75;">(${typeLabel})</span>
+      </label>`;
+  }).join('');
+}
+
+// Renders the dimensions-by-candidates heatmap table for whichever candidates are checked above.
+function renderHeatmap(){
+  const table = document.getElementById('heatmapTable');
+  const empty = document.getElementById('heatmapEmptyState');
+  const headRow = document.getElementById('heatmapHeadRow');
+  const body = document.getElementById('heatmapBody');
+
+  const selected = candidates.filter(c => heatmapSelectedIds.has(c.id));
+
+  if (selected.length < 2){
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    empty.textContent = selected.length === 0
+      ? 'Select two or more candidates above to build the heatmap.'
+      : 'Select at least one more candidate to compare.';
+    return;
+  }
+  empty.style.display = 'none';
+  table.style.display = '';
+
+  headRow.innerHTML = '<th>Dimension</th>' + selected.map(c =>
+    `<th>${escapeHtml(c.name)}<br><span style="font-weight:400; opacity:.75; font-size:.72rem;">${c.type === 'TECH' ? 'Technical' : 'HR'}</span></th>`
+  ).join('');
+
+  body.innerHTML = DIMENSIONS.map(d => `
+    <tr>
+      <td style="font-weight:600;">${d.label}</td>
+      ${selected.map(c => {
+        const rating = c.ratings[d.key];
+        return `<td><span class="heatmap-cell" style="background:${RATING_COLOR_VAR[rating]}">${rating}</span></td>`;
+      }).join('')}
+    </tr>
+  `).join('') + `
+    <tr>
+      <td style="font-weight:700;">Total score</td>
+      ${selected.map(c => `<td style="font-weight:700;">${c.score}</td>`).join('')}
+    </tr>`;
 }
 
 // Groups TECH and HR assessments by candidate name so both scores can be viewed side by side.
