@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nexuzhealth Lab — Candidate Rating Tool</title>
+<title>GDC — Candidate Rating Tool</title>
 <style>
   :root{
     --bg:#f5f7fa; --card:#ffffff; --ink:#1c2733; --muted:#5b6b7c;
@@ -120,7 +120,7 @@
 
 <header class="app-header">
   <h1>Candidate Rating Tool</h1>
-  <p>Nexuzhealth Lab — Recruitment assessment &amp; scoring, based on the internal Recruitment Rating workbook</p>
+  <p>GDC — Recruitment assessment &amp; scoring, based on the internal Recruitment Rating workbook</p>
 </header>
 
 <div class="wrap">
@@ -310,7 +310,7 @@
     </details>
   </section>
 
-  <p class="footer-note">Internal tool for Nexuzhealth Lab recruitment. Ratings reflect interviewer judgement and should be discussed with the hiring panel before any decision — this tool does not make hiring decisions on its own. New candidates are appended to the shared Excel history as an audit trail once Excel sync is configured; editing or deleting a candidate here only changes your local view, not past Excel rows.</p>
+  <p class="footer-note">Internal tool for GDC recruitment. Ratings reflect interviewer judgement and should be discussed with the hiring panel before any decision — this tool does not make hiring decisions on its own. New candidates are appended to the shared Excel history as an audit trail once Excel sync is configured; editing or deleting a candidate here only changes your local view, not past Excel rows.</p>
 </div>
 
 <!-- DETAIL MODAL -->
@@ -535,10 +535,10 @@ function syncCandidateToExcel(candidate){
   if (!ADD_ROW_FLOW_URL) return;
   fetchWithTimeout(ADD_ROW_FLOW_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(candidateToExcelRow(candidate))
-  }, 10000).then(() => {
+  }, 10000).then(res => {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     candidate.source = 'excel';
     renderTable();
   }).catch(err => {
