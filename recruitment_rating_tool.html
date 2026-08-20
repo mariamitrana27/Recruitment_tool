@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexuzhealth Lab — Candidate Rating Tool</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1c2733; --muted:#5b6b7c;
+    --line:#e2e8f0; --accent:#1a7a4c; --accent-ink:#ffffff;
+    --low:#c0392b; --mid:#d68910; --high:#2471a3; --vhigh:#237a3a;
+    --diff-bg:#fff3cd; --diff-border:#e0a800;
+    --radius:12px; --shadow:0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;
+  }
+  header.app-header{
+    background:linear-gradient(135deg,#1a7a4c,#0e4d2f); color:#fff; padding:28px 24px;
+  }
+  header.app-header h1{margin:0 0 4px; font-size:1.6rem;}
+  header.app-header p{margin:0; opacity:.85; font-size:.92rem;}
+  .wrap{max-width:1180px; margin:0 auto; padding:24px;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:22px; margin-bottom:22px;
+  }
+  .card h2{margin-top:0; font-size:1.15rem; display:flex; align-items:center; gap:8px;}
+  .card h2 .tag{font-size:.65rem; text-transform:uppercase; letter-spacing:.04em; background:var(--accent); color:#fff; padding:2px 8px; border-radius:20px; font-weight:600;}
+  details.exec > summary{cursor:pointer; font-weight:600; color:var(--accent); list-style:none;}
+  details.exec > summary::-webkit-details-marker{display:none;}
+  details.exec > summary:before{content:"▸ "; }
+  details.exec[open] > summary:before{content:"▾ "; }
+  .exec-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:14px;}
+  .exec-grid .box{background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:14px 16px;}
+  .exec-grid .box h3{margin:0 0 6px; font-size:.95rem; color:var(--accent);}
+  .exec-grid .box p, .exec-grid .box ul{margin:0; font-size:.85rem; color:var(--muted);}
+  .process-steps{display:flex; align-items:center; gap:10px; margin:16px 0 18px; flex-wrap:wrap;}
+  .process-steps .step{
+    display:flex; align-items:center; gap:10px; background:#eef7f1; border:1px solid #cfe8d8;
+    border-radius:10px; padding:10px 14px; flex:1; min-width:190px;
+  }
+  .process-steps .step-num{
+    display:flex; align-items:center; justify-content:center; min-width:28px; height:28px;
+    border-radius:50%; background:var(--accent); color:#fff; font-weight:700; font-size:.85rem; flex-shrink:0;
+  }
+  .process-steps .step div{display:flex; flex-direction:column;}
+  .process-steps .step strong{font-size:.86rem; color:var(--ink);}
+  .process-steps .step div span{font-size:.75rem; color:var(--muted);}
+  .process-steps .step-arrow{color:var(--accent); font-weight:700; font-size:1.1rem; flex-shrink:0;}
+  @media (max-width:700px){ .process-steps{flex-direction:column; align-items:stretch;} .process-steps .step-arrow{transform:rotate(90deg); align-self:center;} }
+  table.scale{width:100%; border-collapse:collapse; margin-top:10px; font-size:.85rem;}
+  table.scale th, table.scale td{border:1px solid var(--line); padding:6px 10px; text-align:left;}
+  table.scale th{background:#f1f5f7;}
+  .pill{display:inline-block; padding:2px 9px; border-radius:20px; font-size:.72rem; font-weight:700; color:#fff;}
+  .pill.low{background:var(--low);} .pill.mid{background:var(--mid);} .pill.high{background:var(--high);} .pill.vhigh{background:var(--vhigh);}
+  .dims-accordion{margin-top:14px;}
+  .dim-item{border:1px solid var(--line); border-radius:8px; margin-bottom:8px; overflow:hidden;}
+  .dim-item summary{padding:10px 14px; cursor:pointer; font-weight:600; background:#f8fafc; list-style:none;}
+  .dim-item summary::-webkit-details-marker{display:none;}
+  .dim-item summary:before{content:"▶"; color:var(--accent); display:inline-block; font-size:.68rem; margin-right:8px; transition:transform .15s ease;}
+  .dim-item[open] summary:before{content:"▶"; transform:rotate(90deg); transform-origin:0.4em 50%;}
+  .dim-item .body{padding:8px 18px 14px;}
+  .dim-item ul{margin:6px 0 0; padding-left:18px; font-size:.85rem; color:var(--muted);}
+  form.rate-form{display:grid; grid-template-columns:repeat(2,1fr); gap:14px 22px;}
+  form.rate-form .full{grid-column:1/-1;}
+  label{display:block; font-size:.82rem; font-weight:600; margin-bottom:4px; color:var(--ink);}
+  label .hint{font-weight:400; color:var(--muted); font-size:.78rem; display:block; margin-top:1px;}
+  input[type=text], select{
+    width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:.9rem;
+    background:#fff; color:var(--ink);
+  }
+  select:focus, input:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .actions{grid-column:1/-1; display:flex; gap:10px; margin-top:6px; flex-wrap:wrap;}
+  button{
+    border:none; border-radius:8px; padding:9px 18px; font-size:.88rem; font-weight:600;
+    cursor:pointer; transition:transform .05s ease, opacity .15s ease;
+  }
+  button:active{transform:scale(0.98);}
+  button.primary{background:var(--accent); color:#fff;}
+  button.secondary{background:#e2e8f0; color:var(--ink);}
+  button.danger{background:#fdecea; color:var(--low);}
+  button.ghost{background:transparent; color:var(--accent); border:1px solid var(--accent);}
+  button:disabled{opacity:.5; cursor:not-allowed;}
+  .toolbar{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+  .toolbar .filters{display:flex; gap:8px; flex-wrap:wrap;}
+  .toolbar select, .toolbar input{width:auto; min-width:150px;}
+  table.candidates{width:100%; border-collapse:collapse; font-size:.85rem;}
+  table.candidates th, table.candidates td{padding:9px 10px; border-bottom:1px solid var(--line); text-align:left;}
+  table.candidates th{background:#f8fafc; position:sticky; top:0; cursor:pointer; user-select:none;}
+  table.candidates th:hover{color:var(--accent);}
+  table.candidates tbody tr:hover{background:#f6fbfa;}
+  .score-badge{display:inline-block; min-width:32px; text-align:center; padding:3px 8px; border-radius:8px; font-weight:700; color:#fff;}
+  .row-actions button{padding:4px 9px; font-size:.75rem; margin-right:4px;}
+  .empty-state{text-align:center; color:var(--muted); padding:30px 10px; font-size:.9rem;}
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(15,23,32,.55); display:none;
+    align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; z-index:50;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{background:#fff; border-radius:var(--radius); max-width:720px; width:100%; padding:26px; box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  .modal h3{margin-top:0;}
+  .modal-close{float:right; background:transparent; border:none; font-size:1.3rem; cursor:pointer; color:var(--muted);}
+  .detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:14px;}
+  .detail-grid .dim-row{display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed var(--line); font-size:.85rem;}
+  .footer-note{font-size:.78rem; color:var(--muted); text-align:center; margin-top:8px; padding-bottom:20px;}
+  .type-tabs{display:flex; gap:8px; margin-bottom:14px;}
+  .type-tabs button{background:#e9eef1; color:var(--muted); padding:8px 16px;}
+  .type-tabs button.active{background:var(--accent); color:#fff;}
+  .import-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  @media (max-width:700px){
+    form.rate-form{grid-template-columns:1fr;}
+    .detail-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Candidate Rating Tool</h1>
+  <p>Nexuzhealth Lab — Recruitment assessment &amp; scoring, based on the internal Recruitment Rating workbook</p>
+</header>
+
+<div class="wrap">
+
+  <!-- EXECUTIVE SUMMARY -->
+  <section class="card">
+    <h2>Summary <span class="tag">read first</span></h2>
+    <p style="margin-top:6px; color:var(--muted); font-size:.9rem;">
+      Interviewers rate a candidate on 8 fixed dimensions during technical or HR-style interviews. The tool computes a total Score and suggests a corresponding Growth path / seniority level, exactly like the workbook's formulas, and keeps a live, sortable overview of every candidate assessed.
+    </p>
+    <p style="margin-top:6px; color:var(--muted); font-size:.9rem;">
+      <strong style="color:var(--ink);">Data stays only in this browser tab</strong> (no server, no browser storage) — use <strong>Export data</strong> below to save your work.
+    </p>
+    <p style="margin-top:6px; color:var(--muted); font-size:.9rem;">
+      For privacy, ratings are kept only in this page's memory (no server, no browser storage) — this also means a page refresh clears the data. Use <strong>Export data (JSON)</strong> regularly to save your work, and <strong>Import data</strong> to reload it later or share it with a colleague.
+    </p>
+
+    <div class="process-steps">
+      <div class="step"><span class="step-num">1</span><div><strong>HR call</strong><span>With recruiter &amp; People Manager — screening, cultural fit, growth ambitions</span></div></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><span class="step-num">2</span><div><strong>Technical assessment</strong><span>Skills &amp; seniority evaluation</span></div></div>
+      <div class="step-arrow">→</div>
+      <div class="step"><span class="step-num">3</span><div><strong>30' sync with delivery manager</strong><span>Final alignment</span></div></div>
+    </div>
+
+    <details class="exec">
+      <summary>How the score works</summary>
+      <p style="margin-top:10px; color:var(--muted); font-size:.88rem;">
+        Each of the 8 dimensions gets a rating worth points: Low = 0, Mid = 1, High = 3, Very High = 5. The Score is the sum across all 8 (max 40), then matched to a Growth path / seniority level — same logic as the source spreadsheet's formulas.
+      </p>
+      <table class="scale">
+        <thead><tr><th>Rating</th><th>Points</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill low">Low</span></td><td>0</td></tr>
+          <tr><td><span class="pill mid">Mid</span></td><td>1</td></tr>
+          <tr><td><span class="pill high">High</span></td><td>3</td></tr>
+          <tr><td><span class="pill vhigh">Very High</span></td><td>5</td></tr>
+        </tbody>
+      </table>
+      <table class="scale" style="margin-top:10px;">
+        <thead><tr><th>Score reached</th><th>Growth path</th><th>Indicative function</th><th>Maturity</th></tr></thead>
+        <tbody id="growthTableBody"></tbody>
+      </table>
+      <p style="margin-top:8px; color:var(--muted); font-size:.8rem;">
+        Calibrated for the "Software engineer" career path (from the source workbook); a score above 24 shows as "5.3 – 5.4 or above".
+      </p>
+    </details>
+
+    <details class="exec">
+      <summary>Questions asked per dimension</summary>
+      <p style="margin-top:10px; color:var(--muted); font-size:.85rem;">
+        Guidance for interviewers, not a rigid script. Click a dimension to expand it.
+      </p>
+      <div class="dims-accordion" id="dimAccordion"></div>
+    </details>
+  </section>
+
+  <!-- RATING FORM -->
+  <section class="card">
+    <h2>Rate a candidate</h2>
+    <div class="type-tabs">
+      <button type="button" class="active" data-type="TECH" onclick="setFormType('TECH')">Technical assessment</button>
+      <button type="button" data-type="HR" onclick="setFormType('HR')">HR assessment</button>
+    </div>
+    <form class="rate-form" id="rateForm" onsubmit="return handleSubmit(event)">
+      <input type="hidden" id="editId" value="">
+      <div>
+        <label for="candidateName">Candidate name</label>
+        <input type="text" id="candidateName" placeholder="e.g. Jane Doe" required>
+      </div>
+      <div>
+        <label for="careerPath">Career path</label>
+        <select id="careerPath">
+          <option value="Software engineer">Software engineer</option>
+          <option value="QA engineer">QA engineer</option>
+          <option value="QA lead">QA lead</option>
+          <option value="Lead technical designer">Lead technical designer</option>
+          <option value="Other">Other (custom)</option>
+        </select>
+      </div>
+      <div class="full" id="dimensionFields" style="display:grid; grid-template-columns:repeat(2,1fr); gap:14px 22px;"></div>
+      <div class="full" id="livePreview" style="display:flex; align-items:center; gap:12px; background:#f8fafc; border:1px dashed var(--line); border-radius:8px; padding:10px 14px;">
+        <span style="font-size:.82rem; font-weight:600; color:var(--muted);">Live score:</span>
+        <span class="score-badge" id="livePreviewScore" style="background:#94a3b8;">0</span>
+        <span style="font-size:.82rem; color:var(--muted);">out of 40 rated so far</span>
+        <span style="font-size:.82rem; color:var(--muted);" id="livePreviewGrowth"></span>
+        <span style="font-size:.78rem; color:var(--low); margin-left:auto;" id="livePreviewMissing"></span>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary" id="submitBtn">Add candidate</button>
+        <button type="button" class="secondary" onclick="resetForm()">Clear form</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- CANDIDATES TABLE -->
+  <section class="card">
+    <h2>Candidates assessed</h2>
+    <div class="toolbar">
+      <div class="filters">
+        <select id="filterType" onchange="renderTable()">
+          <option value="">All assessment types</option>
+          <option value="TECH">Technical</option>
+          <option value="HR">HR</option>
+        </select>
+        <input type="text" id="searchBox" placeholder="Search by name…" oninput="renderTable()">
+      </div>
+      <div class="import-row">
+        <button class="ghost" onclick="exportJSON()">Export data (JSON)</button>
+        <button class="ghost" onclick="exportCSV()">Export CSV</button>
+        <label class="secondary" style="display:inline-block; padding:9px 14px; border-radius:8px; cursor:pointer; font-size:.85rem; font-weight:600;">
+          Import data
+          <input type="file" accept="application/json" onchange="importJSON(event)" style="display:none;">
+        </label>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="candidates" id="candidatesTable">
+        <thead>
+          <tr>
+            <th onclick="sortBy('name')">Candidate</th>
+            <th onclick="sortBy('type')">Type</th>
+            <th onclick="sortBy('careerPath')">Career path</th>
+            <th onclick="sortBy('score')">Score</th>
+            <th onclick="sortBy('growth')">Growth path</th>
+            <th>Source</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="candidatesBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none;">No candidates yet — rate one above, or import a saved JSON file.</div>
+    </div>
+  </section>
+
+  <!-- TECH vs HR COMPARISON -->
+  <section class="card">
+    <h2>Technical vs HR comparison</h2>
+    <p style="margin-top:-4px; margin-bottom:14px; color:var(--muted); font-size:.85rem;">
+      Same candidate, both interview tracks side by side — matched by candidate name.
+    </p>
+    <div style="overflow-x:auto;">
+      <table class="candidates" id="comparisonTable">
+        <thead>
+          <tr>
+            <th>Candidate</th>
+            <th>Career path</th>
+            <th>Technical score</th>
+            <th>Technical growth path</th>
+            <th>HR score</th>
+            <th>HR growth path</th>
+            <th>Dimension alignment</th>
+          </tr>
+        </thead>
+        <tbody id="comparisonBody"></tbody>
+      </table>
+      <div class="empty-state" id="comparisonEmptyState" style="display:none;">No candidates yet — rate one above to see a technical/HR comparison here.</div>
+    </div>
+  </section>
+
+  <!-- EXCEL / TEAMS SYNC STATUS -->
+  <section class="card">
+    <h2>Excel history &amp; Teams sync <span class="tag" id="syncTag">not configured</span></h2>
+    <p id="syncStatusLine" style="margin-top:6px; color:var(--muted); font-size:.88rem;"></p>
+    <details class="exec">
+      <summary>How this connects to a shared Excel file (setup, once, by an admin)</summary>
+      <div style="margin-top:10px; color:var(--muted); font-size:.85rem;">
+        <p>
+          This page cannot silently read or write a file on OneDrive/SharePoint by itself — browsers block that for security reasons.
+          The supported way to get a live, auto-updating Excel history behind a Teams tab is two small <strong>Power Automate</strong> flows
+          (no Azure app registration needed, just the standard "Excel Online (Business)" connector against the Excel file in your team's SharePoint/OneDrive):
+        </p>
+        <ol style="padding-left:18px; margin:8px 0;">
+          <li><strong>"Add candidate" flow</strong>: trigger = <em>"When an HTTP request is received"</em> → action = <em>"Add a row into a table"</em> on the shared history Excel file. Copy the flow's HTTP POST URL into <code>ADD_ROW_FLOW_URL</code> below in this file.</li>
+          <li><strong>"Get history" flow</strong>: trigger = <em>"When an HTTP request is received"</em> (GET) → action = <em>"List rows present in a table"</em> → a <em>"Response"</em> action returning that data as JSON, with header <code>Access-Control-Allow-Origin: *</code> added manually so the browser is allowed to read it. Copy that URL into <code>GET_ROWS_FLOW_URL</code>.</li>
+        </ol>
+        <p>
+          Once both URLs are filled in near the top of the <code>&lt;script&gt;</code> section and the file is (re)published as the Teams tab, every new candidate is appended to the shared Excel file automatically, and everyone opening the tab loads the same history from that file.
+        </p>
+        <p style="margin-top:8px;">
+          <strong>Security note:</strong> a Power Automate HTTP-trigger URL acts like a password — anyone with it can call the flow. Treat it as a secret: don't post it in a public channel, and keep the Teams tab restricted to your team. This tool never sends it anywhere except the two flow URLs you configure.
+        </p>
+        <p style="margin-top:8px;">
+          Until these are configured, the tool keeps working exactly as before — all data lives only in this browser tab, and you can still use <strong>Export data (JSON)</strong> / <strong>Export CSV</strong> to save or share your work manually.
+        </p>
+      </div>
+    </details>
+  </section>
+
+  <p class="footer-note">Internal tool for Nexuzhealth Lab recruitment. Ratings reflect interviewer judgement and should be discussed with the hiring panel before any decision — this tool does not make hiring decisions on its own. New candidates are appended to the shared Excel history as an audit trail once Excel sync is configured; editing or deleting a candidate here only changes your local view, not past Excel rows.</p>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+// ---------- Excel / Teams sync configuration ----------
+// Fill these in once with your Power Automate flow URLs (see "Excel history & Teams sync" section
+// on the page for the exact flow setup). Leave blank to keep the tool fully local, as before.
+const ADD_ROW_FLOW_URL  = 'https://default42151053019347aa9e81effd81f772.cc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/27/workflows/b6acc36991b94be39e5144165b1ba805/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HXP1k8Rh3QhECsRr89elr7E2H7m1i9yGUjVBPA9CUTY'; // POST — appends one candidate assessment as a row in the shared Excel history
+const GET_ROWS_FLOW_URL = 'https://default42151053019347aa9e81effd81f772.cc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/1aeeb2ffd0e14ffa896e93df044c930e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ZHpVW1w58NoNPH7_Oa7nDsayqRn2eMgx_gca39gESlg'; // GET  — returns the current Excel history as JSON, for loading on page open
+
+// ---------- Static reference data (from the source workbook) ----------
+const DIMENSIONS = [
+  { key:'communication', label:'Communication',
+    questions:['English proficiency','Can explain easily','Comes to a point at an acceptable pace'] },
+  { key:'collaboration', label:'Collaboration',
+    questions:['"We" vs "they" mentality','Experience working in an international team','Experience in a large project with different roles','Willingness to work at the office'] },
+  { key:'attention', label:'Attention to Detail',
+    questions:['Detail of the questions asked','Giving concrete information vs. general talk','Giving concrete examples'] },
+  { key:'adaptability', label:'Adaptability',
+    questions:['General professional experience and how change is handled','Adapting to the AI era','Asks questions','Embracing AI'] },
+  { key:'developing', label:'Developing one-self',
+    questions:['How the candidate stays on top: reading, OSS projects, trying new technologies…','Active contribution to events, OSS projects, …','Has a career plan'] },
+  { key:'experience', label:'Professional Experience',
+    questions:['Agile/Scrum knowledge (important for e.g. a dev lead)','Domain expertise (a bonus, can increase the rating)'] },
+  { key:'leadership', label:'Leadership',
+    questions:['How the candidate works with people','Experience in a lead role','Career plans'] },
+  { key:'technical', label:'Technical Knowledge',
+    questions:['General impression of the technology topics the candidate raises'] },
+];
+
+const RATING_POINTS = { 'Low':0, 'Mid':1, 'High':3, 'Very High':5 };
+const RATING_CLASS  = { 'Low':'low', 'Mid':'mid', 'High':'high', 'Very High':'vhigh' };
+
+// Growth path lookup (Lookup sheet), ascending by score threshold
+const GROWTH_TABLE = [
+  { score:1,  growth:'3.1 - 3.2', fn:'Technical Software Engineer', maturity:'Starter' },
+  { score:4,  growth:'3.3 - 3.4', fn:'Technical Software Engineer', maturity:'Junior' },
+  { score:8,  growth:'4.1 - 4.2', fn:'Technical Designer',          maturity:'Medior' },
+  { score:13, growth:'4.3 - 4.4', fn:'Technical Designer',          maturity:'Senior' },
+  { score:19, growth:'5.1 - 5.2', fn:'Lead Technical Designer',     maturity:'Medior' },
+  { score:24, growth:'5.3 - 5.4', fn:'Lead Technical Designer',     maturity:'Senior' },
+];
+
+function scoreToGrowth(score){
+  if (score < GROWTH_TABLE[0].score) return { growth:'Below 3.1 (not yet at Starter level)', fn:'-', maturity:'-' };
+  let match = GROWTH_TABLE[0];
+  for (const row of GROWTH_TABLE){
+    if (score >= row.score) match = row; else break;
+  }
+  if (score > 24) return { growth:'5.3 - 5.4 or above', fn:'Lead Technical Designer', maturity:'Senior+' };
+  return match;
+}
+
+// ---------- State ----------
+let candidates = []; // {id, name, type, careerPath, ratings:{dimKey:rating}, score, growth}
+let nextId = 1;
+let currentFormType = 'TECH';
+let sortState = { col:'score', dir:'desc' };
+
+// ---------- Init: build static reference sections ----------
+function buildGrowthTable(){
+  const tbody = document.getElementById('growthTableBody');
+  tbody.innerHTML = GROWTH_TABLE.map(r =>
+    `<tr><td>${r.score}+</td><td>${r.growth}</td><td>${r.fn}</td><td>${r.maturity}</td></tr>`
+  ).join('');
+}
+
+function buildDimAccordion(){
+  const el = document.getElementById('dimAccordion');
+  el.innerHTML = DIMENSIONS.map(d => `
+    <details class="dim-item">
+      <summary>${d.label}</summary>
+      <div class="body">
+        <ul>${d.questions.map(q => `<li>${q}</li>`).join('')}</ul>
+      </div>
+    </details>
+  `).join('');
+}
+
+function buildDimensionFields(){
+  const el = document.getElementById('dimensionFields');
+  el.innerHTML = DIMENSIONS.map(d => `
+    <div>
+      <label for="dim_${d.key}">${d.label}</label>
+      <select id="dim_${d.key}" required onchange="updateLivePreview()">
+        <option value="">Select rating…</option>
+        <option value="Low">Low</option>
+        <option value="Mid">Mid</option>
+        <option value="High">High</option>
+        <option value="Very High">Very High</option>
+      </select>
+    </div>
+  `).join('');
+  updateLivePreview();
+}
+
+function updateLivePreview(){
+  let score = 0;
+  const missing = [];
+  DIMENSIONS.forEach(d => {
+    const val = document.getElementById('dim_'+d.key).value;
+    if (val) score += (RATING_POINTS[val] ?? 0);
+    else missing.push(d.label);
+  });
+  const badge = document.getElementById('livePreviewScore');
+  badge.textContent = score;
+  badge.style.background = scoreColor(score);
+  const growthEl = document.getElementById('livePreviewGrowth');
+  const missingEl = document.getElementById('livePreviewMissing');
+  if (missing.length === 0){
+    const g = scoreToGrowth(score);
+    growthEl.textContent = '→ Growth path: ' + g.growth;
+    missingEl.textContent = '';
+  } else {
+    growthEl.textContent = '';
+    missingEl.textContent = missing.length + ' dimension(s) not yet rated: ' + missing.join(', ');
+  }
+}
+
+function setFormType(type){
+  currentFormType = type;
+  document.querySelectorAll('.type-tabs button').forEach(b => b.classList.toggle('active', b.dataset.type===type));
+}
+
+// ---------- Form handling ----------
+function computeScore(ratings){
+  return DIMENSIONS.reduce((sum,d) => sum + (RATING_POINTS[ratings[d.key]] ?? 0), 0);
+}
+
+function handleSubmit(evt){
+  evt.preventDefault();
+  const name = document.getElementById('candidateName').value.trim();
+  const careerPath = document.getElementById('careerPath').value;
+  const editId = document.getElementById('editId').value;
+  if (!name) return false;
+
+  const ratings = {};
+  for (const d of DIMENSIONS){
+    const val = document.getElementById('dim_'+d.key).value;
+    if (!val){ alert('Please rate every dimension before saving.'); return false; }
+    ratings[d.key] = val;
+  }
+  const score = computeScore(ratings);
+  const growthInfo = scoreToGrowth(score);
+
+  if (editId){
+    const c = candidates.find(c => c.id === Number(editId));
+    if (c){
+      c.name = name; c.type = currentFormType; c.careerPath = careerPath;
+      c.ratings = ratings; c.score = score; c.growth = growthInfo;
+    }
+  } else {
+    const newCandidate = {
+      id: nextId++, name, type: currentFormType, careerPath, ratings, score, growth: growthInfo, source: 'local'
+    };
+    candidates.push(newCandidate);
+    syncCandidateToExcel(newCandidate); // fire-and-forget append to the shared Excel history, if configured
+  }
+  resetForm();
+  renderTable();
+  return false;
+}
+
+// ---------- Excel / Teams sync ----------
+function excelSyncConfigured(){
+  return Boolean(ADD_ROW_FLOW_URL || GET_ROWS_FLOW_URL);
+}
+
+function candidateToExcelRow(c){
+  return {
+    Timestamp: new Date().toISOString(),
+    Candidate: c.name,
+    Type: c.type,
+    CareerPath: c.careerPath,
+    Communication: c.ratings.communication,
+    Collaboration: c.ratings.collaboration,
+    AttentionToDetail: c.ratings.attention,
+    Adaptability: c.ratings.adaptability,
+    DevelopingOneself: c.ratings.developing,
+    ProfessionalExperience: c.ratings.experience,
+    Leadership: c.ratings.leadership,
+    TechnicalKnowledge: c.ratings.technical,
+    Score: c.score,
+    GrowthPath: c.growth.growth
+  };
+}
+
+function excelRowToCandidate(row, id){
+  const ratings = {
+    communication: row.Communication, collaboration: row.Collaboration, attention: row.AttentionToDetail,
+    adaptability: row.Adaptability, developing: row.DevelopingOneself, experience: row.ProfessionalExperience,
+    leadership: row.Leadership, technical: row.TechnicalKnowledge
+  };
+  const score = (typeof row.Score === 'number') ? row.Score : computeScore(ratings);
+  return {
+    id, name: row.Candidate || '(unnamed)', type: row.Type === 'HR' ? 'HR' : 'TECH',
+    careerPath: row.CareerPath || 'Software engineer', ratings, score,
+    growth: scoreToGrowth(score), source: 'excel'
+  };
+}
+
+// Appends a single candidate to the shared Excel history via Power Automate. Sent as text/plain in
+// no-cors mode on purpose: browsers don't run a CORS preflight for that combination, so this works
+// straight from a static HTML page without any server-side CORS configuration on the flow's write path.
+// The response is intentionally not read (it would be opaque under no-cors) — this is fire-and-forget.
+// Wraps fetch with a hard timeout so a blocked/hanging request (e.g. a Teams iframe silently
+// dropping a cross-origin call) can never leave the app waiting forever — it always settles.
+function fetchWithTimeout(url, options, timeoutMs){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs || 10000);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+function syncCandidateToExcel(candidate){
+  if (!ADD_ROW_FLOW_URL) return;
+  fetchWithTimeout(ADD_ROW_FLOW_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(candidateToExcelRow(candidate))
+  }, 10000).then(() => {
+    candidate.source = 'excel';
+    renderTable();
+  }).catch(err => {
+    console.warn('Could not sync candidate to Excel:', err);
+    updateSyncStatus('error', 'Last sync to Excel failed — check the flow URL and your connection. This candidate is only saved locally right now.');
+  });
+}
+
+// Loads existing history from the shared Excel file on page open (read path needs an actual readable
+// response, so the "Get history" flow must return the row with an Access-Control-Allow-Origin header).
+async function loadHistoryFromExcel(){
+  if (!GET_ROWS_FLOW_URL) return;
+  updateSyncStatus('loading', 'Loading candidate history from Excel…');
+  try{
+    const res = await fetchWithTimeout(GET_ROWS_FLOW_URL, {}, 10000);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const rows = Array.isArray(data) ? data : (data.value || []);
+    rows.forEach(row => {
+      candidates.push(excelRowToCandidate(row, nextId++));
+    });
+    renderTable();
+    updateSyncStatus('ok', `Loaded ${rows.length} candidate assessment(s) from the shared Excel history.`);
+  } catch(err){
+    console.warn('Could not load Excel history:', err);
+    updateSyncStatus('error', 'Could not load the shared Excel history (check the flow URL, CORS header, and your connection). Starting with an empty list — anything you add now still tries to sync to Excel.');
+  }
+}
+
+function updateSyncStatus(state, message){
+  const tag = document.getElementById('syncTag');
+  const line = document.getElementById('syncStatusLine');
+  if (!tag || !line) return;
+  const labels = { ok:'connected', loading:'loading…', error:'sync issue', off:'not configured' };
+  tag.textContent = labels[state] || state;
+  tag.style.background = state === 'error' ? 'var(--low)' : (state === 'ok' ? 'var(--vhigh)' : 'var(--accent)');
+  line.textContent = message;
+}
+
+function resetForm(){
+  document.getElementById('rateForm').reset();
+  document.getElementById('editId').value = '';
+  document.getElementById('submitBtn').textContent = 'Add candidate';
+  updateLivePreview();
+}
+
+function editCandidate(id){
+  const c = candidates.find(c => c.id === id);
+  if (!c) return;
+  setFormType(c.type);
+  document.getElementById('candidateName').value = c.name;
+  document.getElementById('careerPath').value = c.careerPath;
+  DIMENSIONS.forEach(d => { document.getElementById('dim_'+d.key).value = c.ratings[d.key]; });
+  document.getElementById('editId').value = c.id;
+  document.getElementById('submitBtn').textContent = 'Save changes';
+  updateLivePreview();
+  window.scrollTo({top: document.getElementById('rateForm').offsetTop - 100, behavior:'smooth'});
+}
+
+function deleteCandidate(id){
+  if (!confirm('Remove this candidate assessment?')) return;
+  candidates = candidates.filter(c => c.id !== id);
+  renderTable();
+}
+
+// ---------- Table rendering ----------
+function sortBy(col){
+  if (sortState.col === col){ sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc'; }
+  else { sortState = { col, dir: col==='score' ? 'desc' : 'asc' }; }
+  renderTable();
+}
+
+function renderTable(){
+  const typeFilter = document.getElementById('filterType').value;
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  let rows = candidates.filter(c =>
+    (!typeFilter || c.type === typeFilter) &&
+    (!search || c.name.toLowerCase().includes(search))
+  );
+
+  const key = sortState.col;
+  rows.sort((a,b) => {
+    let av, bv;
+    if (key==='growth'){ av = a.growth.growth; bv = b.growth.growth; }
+    else { av = a[key]; bv = b[key]; }
+    if (typeof av === 'number') return sortState.dir==='asc' ? av-bv : bv-av;
+    return sortState.dir==='asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+
+  const tbody = document.getElementById('candidatesBody');
+  const empty = document.getElementById('emptyState');
+  if (!rows.length){
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    renderComparison();
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = rows.map(c => `
+    <tr>
+      <td><a href="#" onclick="openDetail(${c.id}); return false;" style="color:var(--accent); font-weight:600; text-decoration:none;">${escapeHtml(c.name)}</a></td>
+      <td>${c.type === 'TECH' ? 'Technical' : 'HR'}</td>
+      <td>${escapeHtml(c.careerPath)}</td>
+      <td><span class="score-badge" style="background:${scoreColor(c.score)}">${c.score}</span></td>
+      <td>${c.growth.growth}</td>
+      <td>${sourceBadge(c.source)}</td>
+      <td class="row-actions">
+        <button class="secondary" onclick="editCandidate(${c.id})">Edit</button>
+        <button class="danger" onclick="deleteCandidate(${c.id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+
+  renderComparison();
+}
+
+// Groups TECH and HR assessments by candidate name so both scores can be viewed side by side.
+function getComparisonGroups(){
+  const groups = new Map(); // key: lowercased name -> {name, careerPath, tech, hr}
+  candidates.forEach(c => {
+    const key = c.name.trim().toLowerCase();
+    if (!groups.has(key)){
+      groups.set(key, { key, name: c.name, careerPath: c.careerPath, tech: null, hr: null });
+    }
+    const g = groups.get(key);
+    if (c.type === 'TECH') g.tech = c; else g.hr = c;
+  });
+  return Array.from(groups.values()).sort((a,b) => a.name.localeCompare(b.name));
+}
+
+function diffDimensions(g){
+  if (!g.tech || !g.hr) return [];
+  return DIMENSIONS.filter(d => g.tech.ratings[d.key] !== g.hr.ratings[d.key]);
+}
+
+function renderComparison(){
+  const tbody = document.getElementById('comparisonBody');
+  const empty = document.getElementById('comparisonEmptyState');
+  if (!candidates.length){
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const rows = getComparisonGroups();
+
+  function cell(c){
+    if (!c) return `<td style="color:var(--muted);">— not rated yet —</td><td style="color:var(--muted);">—</td>`;
+    return `<td><span class="score-badge" style="background:${scoreColor(c.score)}">${c.score}</span></td><td>${c.growth.growth}</td>`;
+  }
+
+  tbody.innerHTML = rows.map(g => {
+    const diffs = diffDimensions(g);
+    let diffCell;
+    if (!g.tech || !g.hr){
+      diffCell = `<td style="color:var(--muted);">—</td>`;
+    } else if (diffs.length === 0){
+      diffCell = `<td><span style="color:var(--vhigh); font-weight:600; font-size:.82rem;">Aligned</span></td>`;
+    } else {
+      diffCell = `<td><a href="#" onclick="openComparisonDetail('${g.key.replace(/'/g,"\\'")}'); return false;" style="color:var(--diff-border); font-weight:700; font-size:.82rem; text-decoration:none;">⚠ ${diffs.length} dimension${diffs.length>1?'s':''} differ</a></td>`;
+    }
+    return `
+    <tr${diffs.length ? ` style="background:${diffs.length ? 'rgba(224,168,0,0.06)' : 'transparent'};"` : ''}>
+      <td style="font-weight:600;">${escapeHtml(g.name)}</td>
+      <td>${escapeHtml(g.careerPath)}</td>
+      ${cell(g.tech)}
+      ${cell(g.hr)}
+      ${diffCell}
+    </tr>`;
+  }).join('');
+}
+
+// Modal showing an 8-dimension side-by-side, highlighting where HR and Technical ratings disagree.
+function openComparisonDetail(key){
+  const g = getComparisonGroups().find(x => x.key === key);
+  if (!g || !g.tech || !g.hr) return;
+  const modal = document.getElementById('modalContent');
+  const rowsHtml = DIMENSIONS.map(d => {
+    const t = g.tech.ratings[d.key], h = g.hr.ratings[d.key];
+    const differs = t !== h;
+    return `
+      <tr style="${differs ? `background:var(--diff-bg); border-left:3px solid var(--diff-border);` : ''}">
+        <td style="padding:7px 10px; font-weight:${differs?700:400};">${differs ? '⚠ ' : ''}${d.label}</td>
+        <td style="padding:7px 10px;"><span class="pill ${RATING_CLASS[t]}">${t}</span></td>
+        <td style="padding:7px 10px;"><span class="pill ${RATING_CLASS[h]}">${h}</span></td>
+      </tr>`;
+  }).join('');
+  const diffCount = diffDimensions(g).length;
+  modal.innerHTML = `
+    <h3>${escapeHtml(g.name)} — Technical vs HR, by dimension</h3>
+    <p style="color:var(--muted); margin-top:-8px;">
+      ${diffCount === 0 ? 'Both interviews agree on every dimension.' : `${diffCount} of 8 dimensions differ between the two interviews (highlighted below).`}
+    </p>
+    <table class="scale" style="width:100%; margin-top:10px;">
+      <thead><tr><th>Dimension</th><th>Technical</th><th>HR</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function sourceBadge(source){
+  if (source === 'excel') return `<span style="font-size:.72rem; color:var(--vhigh); font-weight:600;">✓ Excel</span>`;
+  if (source === 'local') return `<span style="font-size:.72rem; color:var(--muted);">Local only</span>`;
+  return '';
+}
+
+function scoreColor(score){
+  if (score >= 19) return 'var(--vhigh)';
+  if (score >= 8) return 'var(--high)';
+  if (score >= 4) return 'var(--mid)';
+  return 'var(--low)';
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ---------- Detail modal with radar chart ----------
+function openDetail(id){
+  const c = candidates.find(c => c.id === id);
+  if (!c) return;
+  const modal = document.getElementById('modalContent');
+  modal.innerHTML = `
+    <h3>${escapeHtml(c.name)}</h3>
+    <p style="color:var(--muted); margin-top:-8px;">
+      ${c.type === 'TECH' ? 'Technical assessment' : 'HR assessment'} · ${escapeHtml(c.careerPath)}
+    </p>
+    <p><span class="score-badge" style="background:${scoreColor(c.score)}; font-size:1rem;">${c.score}</span>
+       &nbsp; Growth path: <strong>${c.growth.growth}</strong> (${c.growth.fn}, ${c.growth.maturity})</p>
+    <div class="detail-grid">
+      <div>${radarSVG(c.ratings)}</div>
+      <div>
+        ${DIMENSIONS.map(d => `
+          <div class="dim-row">
+            <span>${d.label}</span>
+            <span class="pill ${RATING_CLASS[c.ratings[d.key]]}">${c.ratings[d.key]}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('modalBackdrop').classList.remove('open');
+}
+
+// Pure-SVG radar chart, no external chart library
+function radarSVG(ratings){
+  const n = DIMENSIONS.length;
+  const size = 280, cx = size/2, cy = size/2, maxR = 105;
+  const maxPoint = 5;
+  const angle = i => (Math.PI*2*i/n) - Math.PI/2;
+
+  function pt(i, value){
+    const r = (value/maxPoint) * maxR;
+    return [cx + r*Math.cos(angle(i)), cy + r*Math.sin(angle(i))];
+  }
+
+  // grid rings at 1,3,5 points
+  const rings = [1,3,5].map(level => {
+    const pts = DIMENSIONS.map((d,i) => pt(i, level).join(',')).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="#e2e8f0" stroke-width="1"/>`;
+  }).join('');
+
+  const axisLines = DIMENSIONS.map((d,i) => {
+    const [x,y] = pt(i, maxPoint);
+    return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+  }).join('');
+
+  const dataPts = DIMENSIONS.map((d,i) => pt(i, RATING_POINTS[ratings[d.key]]).join(',')).join(' ');
+
+  const labels = DIMENSIONS.map((d,i) => {
+    const [x,y] = pt(i, maxPoint + 1.15);
+    return `<text x="${x}" y="${y}" font-size="9.5" fill="#5b6b7c" text-anchor="middle" dominant-baseline="middle">${d.label.split(' ').join('\\n')}</text>`;
+  }).join('');
+
+  // wrap long labels onto two lines via tspans
+  const wrappedLabels = DIMENSIONS.map((d,i) => {
+    const [x,y] = pt(i, maxPoint + 1.2);
+    const words = d.label.split(' ');
+    let lines = [];
+    if (words.length > 1){
+      const mid = Math.ceil(words.length/2);
+      lines = [words.slice(0,mid).join(' '), words.slice(mid).join(' ')];
+    } else { lines = [d.label]; }
+    const tspans = lines.map((line, li) => `<tspan x="${x}" dy="${li===0? -((lines.length-1)*5) : 11}">${line}</tspan>`).join('');
+    return `<text font-size="9.5" fill="#5b6b7c" text-anchor="middle">${tspans}</text>`;
+  }).join('');
+
+  return `
+    <svg viewBox="0 0 ${size} ${size}" width="100%" style="max-width:280px; height:auto;">
+      ${rings}
+      ${axisLines}
+      <polygon points="${dataPts}" fill="rgba(26,122,76,0.25)" stroke="#1a7a4c" stroke-width="2"/>
+      ${wrappedLabels}
+    </svg>
+  `;
+}
+
+// ---------- Export / Import ----------
+function exportJSON(){
+  const blob = new Blob([JSON.stringify({candidates, nextId}, null, 2)], {type:'application/json'});
+  triggerDownload(blob, 'candidate-ratings.json');
+}
+
+function exportCSV(){
+  const header = ['Candidate','Type','Career path', ...DIMENSIONS.map(d=>d.label), 'Score','Growth path','Function','Maturity'];
+  const lines = [header.join(',')];
+  candidates.forEach(c => {
+    const row = [
+      csvEscape(c.name), c.type, csvEscape(c.careerPath),
+      ...DIMENSIONS.map(d => c.ratings[d.key]),
+      c.score, c.growth.growth, csvEscape(c.growth.fn), c.growth.maturity
+    ];
+    lines.push(row.join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  triggerDownload(blob, 'candidate-ratings.csv');
+}
+
+function csvEscape(s){
+  s = String(s);
+  return /[,"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+
+function triggerDownload(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(evt){
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+      if (Array.isArray(data.candidates)){
+        candidates = data.candidates;
+        nextId = data.nextId || (Math.max(0,...candidates.map(c=>c.id))+1);
+        renderTable();
+        alert('Imported ' + candidates.length + ' candidate assessment(s).');
+      } else {
+        alert('This file does not look like a valid export from this tool.');
+      }
+    } catch(err){
+      alert('Could not read this file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+
+// ---------- Boot ----------
+buildGrowthTable();
+buildDimAccordion();
+buildDimensionFields();
+renderTable();
+if (excelSyncConfigured()){
+  loadHistoryFromExcel();
+} else {
+  updateSyncStatus('off', 'Not connected to a shared Excel file yet — see "How this connects to a shared Excel file" below to set it up. Until then, data stays only in this browser tab.');
+}
+</script>
+</body>
+</html>
